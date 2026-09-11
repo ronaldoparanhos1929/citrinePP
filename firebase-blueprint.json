@@ -1,0 +1,76 @@
+{
+  "project_id": "gen-lang-client-0912322097",
+  "collections": [
+    {
+      "name": "products",
+      "description": "Store products with variations and prices",
+      "fields": [
+        { "name": "name", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "images", "type": "array" },
+        { "name": "video", "type": "string" },
+        { "name": "priceType", "type": "string" },
+        { "name": "price", "type": "number" },
+        { "name": "promotionalPrice", "type": "number" },
+        { "name": "categories", "type": "array" },
+        { "name": "variations", "type": "array" },
+        { "name": "isLaunch", "type": "boolean" },
+        { "name": "isHighlight", "type": "boolean" },
+        { "name": "brand", "type": "string" },
+        { "name": "rating", "type": "number" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "updatedAt", "type": "timestamp" }
+      ],
+      "rules": {
+        "read": "true",
+        "write": "request.auth != null"
+      }
+    },
+    {
+      "name": "categories",
+      "description": "Store categories and subcategories",
+      "fields": [
+        { "name": "name", "type": "string" },
+        { "name": "parentId", "type": "string" }
+      ],
+      "rules": {
+        "read": "true",
+        "write": "request.auth != null"
+      }
+    },
+    {
+      "name": "orders",
+      "description": "Customer orders",
+      "fields": [
+        { "name": "customerName", "type": "string" },
+        { "name": "customerPhone", "type": "string" },
+        { "name": "customerEmail", "type": "string" },
+        { "name": "items", "type": "array" },
+        { "name": "totalAmount", "type": "number" },
+        { "name": "status", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" }
+      ],
+      "rules": {
+        "read": "request.auth != null",
+        "create": "true",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "settings",
+      "description": "Store global settings",
+      "fields": [
+        { "name": "storeName", "type": "string" },
+        { "name": "logoUrl", "type": "string" },
+        { "name": "contactPhone", "type": "string" },
+        { "name": "banners", "type": "array" },
+        { "name": "testimonials", "type": "array" }
+      ],
+      "rules": {
+        "read": "true",
+        "write": "request.auth != null"
+      }
+    }
+  ]
+}
