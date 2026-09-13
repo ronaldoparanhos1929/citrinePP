@@ -1,76 +1,113 @@
-import { db, storage } from './firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where,
-  orderBy,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { INITIAL_PRODUCTS, Product } from './initialData';
 
-export const uploadFile = async (file: File, path: string) => {
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
-};
+const PRODUCTS_STORAGE_KEY = 'paranhos_products_db';
+const ORDERS_STORAGE_KEY = 'paranhos_orders_db';
+
+function getLocalProducts(): Product[] {
+  if (typeof window === 'undefined') return INITIAL_PRODUCTS;
+  try {
+    const data = localStorage.getItem(PRODUCTS_STORAGE_KEY);
+    if (!data) {
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(INITIAL_PRODUCTS));
+      return INITIAL_PRODUCTS;
+    }
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_PRODUCTS;
+  } catch {
+    return INITIAL_PRODUCTS;
+  }
+}
+
+function saveLocalProducts(products: Product[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+  } catch (err) {
+    console.error('Error saving local products:', err);
+  }
+}
 
 export const getProducts = async (filters?: { category?: string, isLaunch?: boolean, isHighlight?: boolean }) => {
-  let q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+  let list = getLocalProducts();
   
   if (filters) {
     if (filters.category) {
-      q = query(q, where('categories', 'array-contains', filters.category));
+      const cat = filters.category.toLowerCase();
+      list = list.filter(p => p.categories?.some(c => c.toLowerCase() === cat));
     }
     if (filters.isLaunch) {
-      q = query(q, where('isLaunch', '==', true));
+      list = list.filter(p => p.isLaunch);
     }
     if (filters.isHighlight) {
-      q = query(q, where('isHighlight', '==', true));
+      list = list.filter(p => p.isHighlight);
     }
   }
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return list;
 };
 
-export const getProduct = async (id: string) => {
-  const docRef = doc(db, 'products', id);
-  const snapshot = await getDoc(docRef);
-  if (snapshot.exists()) {
-    return { id: snapshot.id, ...snapshot.data() };
-  }
-  return null;
+export const getProduct = async (id: string): Promise<Product | null> => {
+  const list = getLocalProducts();
+  const product = list.find(p => String(p.id) === String(id));
+  return product || list[0] || null;
 };
 
 export const addProduct = async (data: any) => {
-  return await addDoc(collection(db, 'products'), {
+  const list = getLocalProducts();
+  const newProduct: Product = {
+    id: Date.now().toString(),
+    rating: 5.0,
+    images: data.images?.length ? data.images : ['https://picsum.photos/600'],
     ...data,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
+  };
+  const updated = [newProduct, ...list];
+  saveLocalProducts(updated);
+  return newProduct;
 };
 
 export const updateProduct = async (id: string, data: any) => {
-  const docRef = doc(db, 'products', id);
-  return await updateDoc(docRef, {
-    ...data,
-    updatedAt: serverTimestamp()
-  });
+  const list = getLocalProducts();
+  const updated = list.map(p => String(p.id) === String(id) ? { ...p, ...data } : p);
+  saveLocalProducts(updated);
+  return { id, ...data };
+};
+
+export const deleteProduct = async (id: string) => {
+  const list = getLocalProducts();
+  const updated = list.filter(p => String(p.id) !== String(id));
+  saveLocalProducts(updated);
 };
 
 export const getOrders = async () => {
-  const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(ORDERS_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveOrder = async (orderData: any) => {
+  const orders = await getOrders();
+  const newOrder = {
+    id: 'PED-' + Math.floor(100000 + Math.random() * 900000),
+    createdAt: new Date().toISOString(),
+    status: 'new',
+    ...orderData
+  };
+  const updated = [newOrder, ...orders];
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updated));
+  }
+  return newOrder;
 };
 
 export const updateOrderStatus = async (id: string, status: string) => {
-  const docRef = doc(db, 'orders', id);
-  return await updateDoc(docRef, { status });
+  const orders = await getOrders();
+  const updated = orders.map((o: any) => o.id === id ? { ...o, status } : o);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(updated));
+  }
+  return { id, status };
 };

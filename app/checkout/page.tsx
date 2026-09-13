@@ -1,60 +1,57 @@
 'use client';
 
-  import { useState, useEffect } from 'react';
-  import { useStore } from '@/store/useStore';
-  import { useRouter } from 'next/navigation';
-  import { db } from '@/lib/firebase';
-  import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-  import { ShoppingBag } from 'lucide-react';
-  
-  export default function CheckoutPage() {
-    const { cart, clearCart } = useStore();
-    const router = useRouter();
-    const [mounted, setMounted] = useState(false);
-  
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
-  
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-    useEffect(() => {
-      setMounted(true);
-      if (cart.length === 0) {
-        router.push('/carrinho');
-      }
-    }, [cart.length, router]);
-  
-    if (!mounted || cart.length === 0) {
-      return null;
+import { useState, useEffect } from 'react';
+import { useStore } from '@/store/useStore';
+import { useRouter } from 'next/navigation';
+import { saveOrder } from '@/lib/api';
+import { ShoppingBag } from 'lucide-react';
+
+export default function CheckoutPage() {
+  const { cart, clearCart } = useStore();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  useEffect(() => {
+    setMounted(true);
+    if (cart.length === 0) {
+      router.push('/carrinho');
     }
+  }, [cart.length, router]);
+
+  if (!mounted || cart.length === 0) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Save order to Firebase
-      const orderRef = await addDoc(collection(db, 'orders'), {
+      // 1. Save order locally
+      const order = await saveOrder({
         customerName: name,
         customerPhone: phone,
         customerEmail: email || null,
         items: cart,
         totalAmount: total,
-        status: 'new',
-        createdAt: serverTimestamp()
       });
 
       // 2. Generate WhatsApp link
-      const storePhone = '5571991044482'; // From prompt (71) 991044482
+      const storePhone = '5571991044482'; // (71) 991044482
       
-      let message = `Olá! Meu nome é ${name} e gostaria de finalizar meu pedido (ID: ${orderRef.id.slice(-6).toUpperCase()}):\n\n`;
+      let message = `Olá! Meu nome é ${name} e gostaria de finalizar meu pedido (ID: ${order.id}):\n\n`;
       cart.forEach(item => {
-        message += `- ${item.quantity}x ${item.name} ${item.variation ? `(${item.variation})` : ''} = R$ ${(item.price * item.quantity).toFixed(2)}\n`;
+        message += `• ${item.quantity}x ${item.name} ${item.variation ? `(${item.variation})` : ''} = R$ ${(item.price * item.quantity).toFixed(2)}\n`;
       });
       message += `\n*Total: R$ ${total.toFixed(2)}*\n\n`;
-      message += `Por favor, me informe como proceder com o pagamento.`;
+      message += `Por favor, me informe como proceder com o pagamento e entrega.`;
 
       const waLink = `https://wa.me/${storePhone}?text=${encodeURIComponent(message)}`;
 
@@ -84,6 +81,7 @@
               type="text"
               id="name"
               required
+              placeholder="Seu nome"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-3 border"
@@ -96,7 +94,7 @@
               type="tel"
               id="phone"
               required
-              placeholder="(00) 00000-0000"
+              placeholder="(71) 90000-0000"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-3 border"
@@ -108,6 +106,7 @@
             <input
               type="email"
               id="email"
+              placeholder="seuemail@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-3 border"

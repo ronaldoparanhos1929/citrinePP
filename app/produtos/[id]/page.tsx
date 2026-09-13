@@ -1,12 +1,10 @@
 import ProductDetailView from '@/components/ProductDetailView';
+import { INITIAL_PRODUCTS } from '@/lib/initialData';
 
 export async function generateStaticParams() {
-  return [
-    { id: '1' },
-    { id: '2' },
-    { id: '3' },
-    { id: '4' },
-  ];
+  return INITIAL_PRODUCTS.map((p) => ({
+    id: p.id,
+  }));
 }
 
 export default function ProductPage() {
